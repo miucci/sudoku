@@ -1,14 +1,8 @@
 use std::fmt::Display;
 
-#[derive(Debug, Clone, Copy)]
-enum SudokuSquare {
-    Preset(u8),
-    Free(Option<u8>),
-}
-
 #[derive(Debug)]
 struct Board {
-    b: Vec<Vec<SudokuSquare>>,
+    b: Vec<Vec<Option<u8>>>,
 }
 
 struct RowIter<'a> {
@@ -17,7 +11,7 @@ struct RowIter<'a> {
 }
 
 impl<'a> Iterator for RowIter<'a> {
-    type Item = Vec<SudokuSquare>;
+    type Item = Vec<Option<u8>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_line != 9 {
@@ -35,7 +29,7 @@ struct ColumnIter<'a> {
 }
 
 impl<'a> Iterator for ColumnIter<'a> {
-    type Item = Vec<SudokuSquare>;
+    type Item = Vec<Option<u8>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_column != 9 {
@@ -57,7 +51,7 @@ struct SubsquareIter<'a> {
 }
 
 impl<'a> Iterator for SubsquareIter<'a> {
-    type Item = Vec<SudokuSquare>;
+    type Item = Vec<Option<u8>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.next_subsquare != 9 {
@@ -91,14 +85,8 @@ impl Display for Board {
                 }
 
                 s.push_str(&match c {
-                    SudokuSquare::Free(square) => {
-                        if let Some(v) = square {
-                            v.to_string()
-                        } else {
-                            " ".to_string()
-                        }
-                    }
-                    SudokuSquare::Preset(val) => val.to_string(),
+                    None => " ".to_string(),
+                    Some(val) => val.to_string(),
                 });
             }
             s.push_str("|\n");
@@ -132,68 +120,32 @@ impl Board {
 
     fn is_valid(&self) -> bool {
         for row in self.rows() {
-            let mut found: [bool; 9] = [false; 9];
-            for square in row {
-                match square {
-                    SudokuSquare::Free(data) => {
-                        if let Some(val) = data {
-                            if found[val as usize - 1] {
-                                return false;
-                            }
-                            found[val as usize - 1] = true;
-                        }
-                    }
-                    SudokuSquare::Preset(val) => {
-                        if found[val as usize - 1] {
-                            return false;
-                        }
-                        found[val as usize - 1] = true;
-                    }
+            let mut found: [bool; 10] = [false; 10];
+            for val in row.into_iter().flatten() {
+                if found[val as usize] {
+                    return false;
                 }
+                found[val as usize] = true;
             }
         }
 
         for column in self.columns() {
-            let mut found: [bool; 9] = [false; 9];
-            for square in column {
-                match square {
-                    SudokuSquare::Free(data) => {
-                        if let Some(val) = data {
-                            if found[val as usize - 1] {
-                                return false;
-                            }
-                            found[val as usize - 1] = true;
-                        }
-                    }
-                    SudokuSquare::Preset(val) => {
-                        if found[val as usize - 1] {
-                            return false;
-                        }
-                        found[val as usize - 1] = true;
-                    }
+            let mut found: [bool; 10] = [false; 10];
+            for val in column.into_iter().flatten() {
+                if found[val as usize] {
+                    return false;
                 }
+                found[val as usize] = true;
             }
         }
 
         for subsquare in self.subsquares() {
-            let mut found: [bool; 9] = [false; 9];
-            for square in subsquare {
-                match square {
-                    SudokuSquare::Free(data) => {
-                        if let Some(val) = data {
-                            if found[val as usize - 1] {
-                                return false;
-                            }
-                            found[val as usize - 1] = true;
-                        }
-                    }
-                    SudokuSquare::Preset(val) => {
-                        if found[val as usize - 1] {
-                            return false;
-                        }
-                        found[val as usize - 1] = true;
-                    }
+            let mut found: [bool; 10] = [false; 10];
+            for val in subsquare.into_iter().flatten() {
+                if found[val as usize] {
+                    return false;
                 }
+                found[val as usize] = true;
             }
         }
         true
@@ -210,17 +162,17 @@ impl Board {
         };
 
         match self.b[row][column] {
-            SudokuSquare::Preset(_) => {
-                return self.solve_recursive(next_row, next_column);
-            }
-            SudokuSquare::Free(_) => {
+            None => {
                 for i in 1..=9 {
-                    self.b[row][column] = SudokuSquare::Free(Some(i));
+                    self.b[row][column] = Some(i);
                     if self.is_valid() && self.solve_recursive(next_row, next_column) {
                         return true;
                     }
                 }
-                self.b[row][column] = SudokuSquare::Free(None);
+                self.b[row][column] = None;
+            }
+            _ => {
+                return self.solve_recursive(next_row, next_column);
             }
         }
         false
@@ -240,10 +192,8 @@ impl Board {
             sudoku.b.push(
                 row.chars()
                     .map(|c| match c {
-                        '.' => SudokuSquare::Free(None),
-                        num => SudokuSquare::Preset(
-                            std::str::FromStr::from_str(&num.to_string()).unwrap(),
-                        ),
+                        '.' => None,
+                        num => Some(std::str::FromStr::from_str(&num.to_string()).unwrap()),
                     })
                     .collect(),
             );
