@@ -207,8 +207,20 @@ impl Board {
 }
 
 fn main() {
-    let data = std::fs::read_to_string("sudoku.txt").unwrap();
-    let mut sudoku = Board::from_str(&data).unwrap();
+    let data = match std::fs::read_to_string("sudoku.txt") {
+        Ok(str) => str,
+        Err(e) => {
+            eprintln!("ERROR: {e}");
+            std::process::exit(1);
+        }
+    };
+    let mut sudoku = match Board::from_str(&data) {
+        Some(s) => s,
+        None => {
+            eprintln!("ERROR: invalid sudoku");
+            std::process::exit(1);
+        }
+    };
     println!("Board\n{sudoku}");
     sudoku.solve();
     println!("Solved:\n{sudoku}");
