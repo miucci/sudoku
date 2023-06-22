@@ -182,8 +182,11 @@ impl Board {
         _ = self.solve_recursive(0, 0);
     }
 
-    fn load_from_file(path: &str) -> Board {
-        let mut s = std::fs::read_to_string(path).unwrap();
+    fn from_str(src: &str) -> Option<Board> {
+        if src.len() <= 81 {
+            return None;
+        }
+        let mut s = src;
         let mut sudoku = Board {
             b: Vec::with_capacity(9),
         };
@@ -193,18 +196,19 @@ impl Board {
                 row.chars()
                     .map(|c| match c {
                         '.' => None,
-                        num => Some(std::str::FromStr::from_str(&num.to_string()).unwrap()),
+                        num => Some(num.to_digit(10)? as u8),
                     })
                     .collect(),
             );
-            s = rest.to_string();
+            s = rest;
         }
-        sudoku
+        Some(sudoku)
     }
 }
 
 fn main() {
-    let mut sudoku = Board::load_from_file("sudoku.txt");
+    let data = std::fs::read_to_string("sudoku.txt").unwrap();
+    let mut sudoku = Board::from_str(&data).unwrap();
     println!("Board\n{sudoku}");
     sudoku.solve();
     println!("Solved:\n{sudoku}");
