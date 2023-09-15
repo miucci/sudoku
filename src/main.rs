@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, thread};
 
 #[derive(Debug)]
 struct Board {
@@ -183,7 +183,7 @@ impl Board {
     }
 
     fn from_str(src: &str) -> Option<Board> {
-        if src.len() <= 81 {
+        if src.len() != 81 {
             return None;
         }
         let mut s = src;
@@ -214,15 +214,24 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let mut sudoku = match Board::from_str(&data) {
-        Some(s) => s,
-        None => {
-            eprintln!("ERROR: invalid sudoku");
-            std::process::exit(1);
-        }
-    };
-    println!("Board\n{sudoku}");
-    sudoku.solve();
-    println!("Solved:\n{sudoku}");
-    assert!(sudoku.is_valid());
+    let mut handles = Vec::new();
+    let lines: Vec<String> = data.lines().map(|l| l.to_string()).collect();
+    for thread_data in lines.chunks(lines.len() / 20).map(|c| c.to_vec()) {
+        handles.push(thread::spawn(move || {
+            for line in thread_data {
+                let mut sudoku = match Board::from_str(&line) {
+                    Some(s) => s,
+                    None => {
+                        eprintln!("ERROR: invalid sudoku");
+                        std::process::exit(1);
+                    }
+                };
+                sudoku.solve();
+                assert!(sudoku.is_valid());
+            }
+        }));
+    }
+    for handle in handles {
+        _ = handle.join();
+    }
 }
