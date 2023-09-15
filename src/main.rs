@@ -239,7 +239,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let data = match std::fs::read_to_string("sudoku.txt") {
+    let data = match std::fs::read_to_string(args.input) {
         Ok(str) => str,
         Err(e) => {
             eprintln!("ERROR: {e}");
