@@ -1,4 +1,4 @@
-use std::{fmt::Display, thread};
+use std::{fmt::Display, io::Write, thread};
 
 #[derive(Debug)]
 struct Board {
@@ -204,6 +204,19 @@ impl Board {
         }
         Some(sudoku)
     }
+
+    fn to_format_string(&self) -> String {
+        let mut res = String::new();
+        for row in self.rows() {
+            for square in row {
+                res.push(match square {
+                    Some(i) => (i + 48) as char,
+                    None => '.',
+                })
+            }
+        }
+        res
+    }
 }
 
 fn main() {
@@ -218,6 +231,7 @@ fn main() {
     let lines: Vec<String> = data.lines().map(|l| l.to_string()).collect();
     for thread_data in lines.chunks(lines.len() / 20).map(|c| c.to_vec()) {
         handles.push(thread::spawn(move || {
+            let mut res = Vec::new();
             for line in thread_data {
                 let mut sudoku = match Board::from_str(&line) {
                     Some(s) => s,
@@ -228,10 +242,29 @@ fn main() {
                 };
                 sudoku.solve();
                 assert!(sudoku.is_valid());
+                res.push(sudoku.to_format_string());
             }
+            res
         }));
     }
+    let mut thread_results = Vec::new();
     for handle in handles {
-        _ = handle.join();
+        thread_results.append(&mut handle.join().unwrap());
+    }
+    match std::fs::File::options()
+        .write(true)
+        .create(true)
+        .open("results.txt")
+    {
+        Ok(mut f) => {
+            if f.write_all(thread_results.join("\n").as_bytes()).is_err() {
+                eprintln!("ERROR: failed writing results to file");
+                std::process::exit(1);
+            }
+        }
+        Err(_) => {
+            eprintln!("ERROR: failed creating result file");
+            std::process::exit(1);
+        }
     }
 }
