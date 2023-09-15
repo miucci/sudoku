@@ -1,3 +1,4 @@
+use clap::Parser;
 use std::{fmt::Display, io::Write, thread};
 
 #[derive(Debug)]
@@ -219,7 +220,25 @@ impl Board {
     }
 }
 
+/// Simple program to solve sudoku puzzles in parallel
+#[derive(Parser, Debug)]
+#[command(about)]
+struct Args {
+    /// Number of cores to use
+    #[arg(short, default_value_t = 1)]
+    n: usize,
+
+    /// Name of the input file
+    #[arg(short)]
+    input: String,
+
+    /// Name of the output file
+    #[arg(short)]
+    output: String,
+}
+
 fn main() {
+    let args = Args::parse();
     let data = match std::fs::read_to_string("sudoku.txt") {
         Ok(str) => str,
         Err(e) => {
@@ -229,7 +248,7 @@ fn main() {
     };
     let mut handles = Vec::new();
     let lines: Vec<String> = data.lines().map(|l| l.to_string()).collect();
-    for thread_data in lines.chunks(lines.len() / 20).map(|c| c.to_vec()) {
+    for thread_data in lines.chunks(lines.len() / args.n).map(|c| c.to_vec()) {
         handles.push(thread::spawn(move || {
             let mut res = Vec::new();
             for line in thread_data {
@@ -254,7 +273,7 @@ fn main() {
     match std::fs::File::options()
         .write(true)
         .create(true)
-        .open("results.txt")
+        .open(args.output)
     {
         Ok(mut f) => {
             if f.write_all(thread_results.join("\n").as_bytes()).is_err() {
